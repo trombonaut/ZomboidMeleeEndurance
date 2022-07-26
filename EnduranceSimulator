@@ -1,0 +1,39 @@
+using UnityEngine;
+
+public class EnduranceSimulator : MonoBehaviour
+{
+    [SerializeField] EnduranceWeapon[] _weapons;
+    [SerializeField] EnduranceFightSimulator _fightSimulator;
+
+    [SerializeField] int _simulationCount;
+
+    public void BeginSimulation(EnduranceWeapon[] _originalWeapons)
+    {
+        foreach (EnduranceWeapon weapon in _originalWeapons)
+        {
+            SimulateWeaponCombat(weapon);
+        }
+    }
+
+    private void SimulateWeaponCombat(EnduranceWeapon weapon)
+    {
+        int kills = 0;
+        float bonusDamage = 0;
+
+        for (int i = 0; i < _simulationCount; i++)
+        {
+            _fightSimulator.AttackZeds(weapon);
+            kills += weapon.Kills;
+            bonusDamage += weapon.TotalConsecutiveHitBonus;
+
+            weapon.Kills = 0;
+            weapon.TotalConsecutiveHitBonus = 0;
+        }
+
+        kills /= _simulationCount;
+        bonusDamage /= _simulationCount;
+
+        weapon.Kills = kills;
+        weapon.TotalConsecutiveHitBonus = bonusDamage;
+    }
+}
