@@ -1,0 +1,103 @@
+using UnityEngine;
+using System.IO;
+using System.Linq;
+
+public class EnduranceFileHandler : MonoBehaviour
+{
+    [SerializeField] EnduranceSimulator _simulator;
+
+    private const string NewFileName = "/EnduranceSheet.csv";
+    private const string SaveDirectory = "/Weapons";
+
+    private const string SourceDirectory = "/Weapons";
+    private const string SourceName = "/endurance_weapons.txt";
+
+    [SerializeField] char _stringInputSeparator = '\t';
+    [SerializeField] char _stringOutputSeparator = ',';
+
+    private int _weaponCount = 0;
+
+    public void BtnStartEndurance()
+    {
+        if (Directory.Exists(SourceDirectory))
+        {
+            Debug.Log("Directory found");
+        }
+        else
+        {
+            Debug.Log("Directory not found");
+        }
+
+        string directoryPath = Path.Combine(Application.persistentDataPath, SaveDirectory);
+
+        if (!Directory.Exists(directoryPath))
+        {
+            Directory.CreateDirectory(directoryPath);
+            Debug.Log("Path created: " + directoryPath);
+        }
+        else
+        {
+            Debug.Log("path found: " + directoryPath);
+        }
+
+        string filePath = Application.persistentDataPath + SourceDirectory + SourceName;
+        if (File.Exists(filePath))
+        {
+            _weaponCount = File.ReadLines(filePath).Count();
+            int counter = 0;
+
+            EnduranceWeapon[] weapons = new EnduranceWeapon[_weaponCount];
+
+            foreach (string line in File.ReadLines(filePath))
+            {
+                EnduranceWeapon weapon = new EnduranceWeapon();
+                string[] items = line.Split(_stringInputSeparator);
+                weapon.Name = items[0];
+                weapon.Weight = float.Parse(items[1]);
+                weapon.EnduranceMod = float.Parse(items[2]);
+                weapon.MinDmg = float.Parse(items[3]);
+                weapon.MaxDmg = float.Parse(items[4]);
+                weapon.CritChance = float.Parse(items[5]);
+                weapon.CritBonus = float.Parse(items[6]);
+
+                weapons[counter] = weapon;
+                counter++;
+            }
+
+            _simulator.BeginSimulation(weapons);
+
+            //foreach (EnduranceWeapon weapon in weapons)
+            //{
+            //    Debug.Log($"{weapon.Name} {weapon.Kills}");
+            //}
+
+            WriteResultsToFile(weapons, directoryPath);
+        }
+        else
+        {
+            Debug.LogWarning("source file not found:" + filePath);
+        }
+    }
+
+    private void WriteResultsToFile(EnduranceWeapon[] weapons, string directoryPath)
+    {
+        string savePath = Application.persistentDataPath + directoryPath + NewFileName;
+        Debug.Log("writing to file at " + savePath);
+        string weaponStrings = "";
+
+        foreach (EnduranceWeapon weapon in weapons)
+        {
+            string weaponString = "";
+            weaponString += weapon.Name + _stringOutputSeparator;
+            weaponString += weapon.Kills.ToString() + _stringOutputSeparator;
+            weaponString += weapon.TotalConsecutiveHitBonus.ToString() + "\n";
+
+            weaponStrings += weaponString;
+        }
+
+        StreamWriter writer = new StreamWriter(savePath);
+        writer.WriteLine(weaponStrings);
+        writer.Flush();
+        writer.Close();
+    }
+}
