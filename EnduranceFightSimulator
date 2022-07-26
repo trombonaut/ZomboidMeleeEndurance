@@ -1,0 +1,161 @@
+using UnityEngine;
+
+public class EnduranceFightSimulator : MonoBehaviour
+{
+    [SerializeField] float _zedMaxHealth = 1.95f;
+
+    [SerializeField] float _fatigueModFitness = 0.85f;
+    [SerializeField] float _wepPerkFatigueMod = 1;
+
+    [SerializeField] EnduranceWeapon _currentWeapon;
+
+    [SerializeField] float _enduranceRemaining = 0;
+    [SerializeField] float _enduranceBudget = 0.25f;
+    [SerializeField] int _kills = 0;
+
+    [SerializeField] Zombie _currentZombie;
+
+    private void Awake()
+    {
+        NewZombie();
+        _enduranceRemaining = _enduranceBudget;
+    }
+
+    private void Update()
+    {
+    }
+
+    private void NewZombie()
+    {
+        _currentZombie = new Zombie(_zedMaxHealth);
+    }
+
+    public void AttackZeds(EnduranceWeapon weapon)
+    {
+        bool isExhausted = HandleAttack(weapon);
+
+        if (isExhausted)
+        {
+            weapon.Kills = _kills;
+            _kills = 0;
+            _enduranceRemaining = 0.25f;
+        }
+
+        else
+        {
+            AttackZeds(weapon);
+        }
+    }
+
+    private float MultiplyForPreviousHits(float dmg, EnduranceWeapon weapon)
+    {
+        if (_currentZombie.HitsTaken >= 4)
+        {
+            float bonusDamage = dmg * ((_currentZombie.HitsTaken - 2) * 1.5f);
+            weapon.TotalConsecutiveHitBonus += (bonusDamage - dmg) * 40;
+        }
+
+        return dmg;
+    }
+
+    private bool HandleAttack(EnduranceWeapon weapon)
+    {
+        float enduranceMax = GetWeaponEnduranceCost(weapon);
+        float currentDamage = GetDamage(weapon);
+
+        float damageMultiplier = currentDamage / weapon.MaxDmg;
+
+        if (damageMultiplier > 1)
+        {
+            damageMultiplier = 1;
+        }
+
+        float enduranceCost = enduranceMax * damageMultiplier;
+
+        float _remainingHealth = _currentZombie.Hp;
+
+        _currentZombie.NoteHit();
+        currentDamage = MultiplyForPreviousHits(currentDamage, weapon);
+
+        _currentZombie.Hp -= currentDamage;
+
+        if (_currentZombie.Hp <= 0)
+        {
+            float altCost = _remainingHealth / _zedMaxHealth;
+            if (altCost < enduranceCost)
+            {
+                enduranceCost = altCost;
+            }
+
+            _kills++;
+            _currentZombie.Hp = _zedMaxHealth;
+            NewZombie();
+        }
+
+        _enduranceRemaining -= enduranceCost;
+
+        if (_enduranceRemaining < 0)
+        {
+            return true;
+        }
+
+        else return false;
+    }
+
+    private float GetWeaponEnduranceCost(EnduranceWeapon weapon)
+    {
+        float weight = weapon.Weight;
+
+        float enduranceCost = weight *= 0.28f;
+
+        enduranceCost *= _fatigueModFitness;
+
+        enduranceCost *= _wepPerkFatigueMod;
+
+        enduranceCost *= weapon.EnduranceMod;
+
+        enduranceCost *= 0.3f;
+
+        enduranceCost *= 0.04f;
+
+        return enduranceCost;
+    }
+
+    private float GetDamage(EnduranceWeapon weapon)
+    {
+        float dmg = weapon.MinDmg + (Random.Range(0, weapon.MaxDmg - weapon.MinDmg));
+
+        bool isCrit = Random.Range(0, 100) < weapon.CritChance;
+
+        if (weapon.CritChance == 0 && isCrit == true)
+        {
+            Debug.LogWarning("crit found on non-crit weapon: " + weapon.Name);
+        }
+
+        dmg = isCrit ? dmg * weapon.CritBonus : dmg;
+
+        float rangeMod = 0.9f;
+
+        dmg *= rangeMod;
+
+        return dmg;
+    }
+
+    [System.Serializable]
+    public class Zombie
+    {
+        public float Hp;
+        public int HitsTaken = 0;
+
+        public Zombie(float hp)
+        {
+            Hp = hp;
+            HitsTaken = 0;
+        }
+
+        public void NoteHit()
+        {
+            HitsTaken++;
+        }
+    }
+}
